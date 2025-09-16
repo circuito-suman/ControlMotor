@@ -78,7 +78,7 @@ private:
     bool connected;
     AxisMeasurement measX, measY, measZ;
     QByteArray buffer;
-
+    void handleSerialRead();
     double lastPosX = 0.0;
     double lastPosY = 0.0;
     double lastPosZ = 0.0;

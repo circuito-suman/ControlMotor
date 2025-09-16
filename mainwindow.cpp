@@ -196,6 +196,11 @@ void MainWindow::connectPort() {
         updateStatus("No port selected.");
         return;
     }
+
+
+    connect(serial, &QSerialPort::readyRead, this, &MainWindow::handleSerialRead);
+
+
     if (serial->isOpen())
         serial->close();
     serial->setPortName(port);
@@ -318,4 +323,25 @@ AxisMeasurement* MainWindow::measurement(const QString& axis) {
     if (axis == "x" || axis == "X") return &measX;
     if (axis == "y" || axis == "Y") return &measY;
     return &measZ;
+}
+
+void MainWindow::handleSerialRead()
+{
+    buffer.append(serial->readAll());
+
+    while (true) {
+        int newlineIndex = buffer.indexOf('\n');
+        if (newlineIndex == -1)
+            break; // No complete line yet
+
+        QByteArray lineData = buffer.left(newlineIndex + 1);
+        buffer.remove(0, newlineIndex + 1);
+
+        QString line = QString::fromUtf8(lineData).trimmed();
+        if (line.isEmpty())
+            continue; // Skip empty lines
+
+        QString timestamp = QTime::currentTime().toString("HH:mm:ss");
+        statusLog->append(QString("[%1] %2").arg(timestamp, line));
+    }
 }
