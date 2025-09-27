@@ -16,9 +16,10 @@ TinyBeeController::~TinyBeeController()
     disconnectPort();
 }
 
-bool TinyBeeController::connectPort(const QString& portName, qint32 baudRate)
+bool TinyBeeController::connectPort(const QString &portName, qint32 baudRate)
 {
-    if (m_serial.isOpen()) {
+    if (m_serial.isOpen())
+    {
         m_serial.close();
     }
 
@@ -29,7 +30,8 @@ bool TinyBeeController::connectPort(const QString& portName, qint32 baudRate)
     m_serial.setStopBits(QSerialPort::OneStop);
     m_serial.setFlowControl(QSerialPort::NoFlowControl);
 
-    if (!m_serial.open(QIODevice::ReadWrite)) {
+    if (!m_serial.open(QIODevice::ReadWrite))
+    {
         m_hasError = true;
         QString err = QString("Failed to open serial port %1: %2").arg(portName, m_serial.errorString());
         emit errorOccurred(err);
@@ -64,19 +66,24 @@ bool TinyBeeController::isConnected() const
     return m_connected && m_serial.isOpen();
 }
 
-QString TinyBeeController::buildCommandString(const GCodeCommand& cmd) const
+QString TinyBeeController::buildCommandString(const GCodeCommand &cmd) const
 {
-    switch (cmd.type) {
+    switch (cmd.type)
+    {
     case GCodeCommandType::FirmwareInfo:
         return "M115\n";
     case GCodeCommandType::Home:
         if (cmd.x == 0 && cmd.y == 0 && cmd.z == 0)
             return "G28\n"; // Home all axes
-        else {
+        else
+        {
             QString axes;
-            if (cmd.x != 0) axes += " X";
-            if (cmd.y != 0) axes += " Y";
-            if (cmd.z != 0) axes += " Z";
+            if (cmd.x != 0)
+                axes += " X";
+            if (cmd.y != 0)
+                axes += " Y";
+            if (cmd.z != 0)
+                axes += " Z";
             return QString("G28%1\n").arg(axes);
         }
     case GCodeCommandType::Move:
@@ -94,9 +101,10 @@ QString TinyBeeController::buildCommandString(const GCodeCommand& cmd) const
     }
 }
 
-bool TinyBeeController::sendCommand(const GCodeCommand& cmd, QString* response, int timeoutMs)
+bool TinyBeeController::sendCommand(const GCodeCommand &cmd, QString *response, int timeoutMs)
 {
-    if (!isConnected()) {
+    if (!isConnected())
+    {
         QString err = "Cannot send command: Not connected to serial port";
         emit errorOccurred(err);
         qWarning() << err;
@@ -104,7 +112,8 @@ bool TinyBeeController::sendCommand(const GCodeCommand& cmd, QString* response, 
     }
 
     QString cmdStr = buildCommandString(cmd);
-    if (cmdStr.isEmpty()) {
+    if (cmdStr.isEmpty())
+    {
         qWarning() << "Empty command string built for GCodeCommand";
         return false;
     }
@@ -113,14 +122,16 @@ bool TinyBeeController::sendCommand(const GCodeCommand& cmd, QString* response, 
     m_responseBuffer.clear();
 
     QByteArray data = cmdStr.toUtf8();
-    if (m_serial.write(data) == -1) {
+    if (m_serial.write(data) == -1)
+    {
         QString err = QString("Failed to write command to serial port: %1").arg(cmdStr.trimmed());
         emit errorOccurred(err);
         qCritical() << err;
         return false;
     }
 
-    if (!m_serial.waitForBytesWritten(timeoutMs)) {
+    if (!m_serial.waitForBytesWritten(timeoutMs))
+    {
         QString err = QString("Timeout waiting for bytes to be written: %1").arg(cmdStr.trimmed());
         emit errorOccurred(err);
         qCritical() << err;
@@ -128,7 +139,8 @@ bool TinyBeeController::sendCommand(const GCodeCommand& cmd, QString* response, 
     }
 
     QString resp;
-    if (!waitForResponse(resp, timeoutMs)) {
+    if (!waitForResponse(resp, timeoutMs))
+    {
         QString err = QString("Timeout or incomplete response for command: %1").arg(cmdStr.trimmed());
         emit errorOccurred(err);
         qWarning() << err;
@@ -143,18 +155,21 @@ bool TinyBeeController::sendCommand(const GCodeCommand& cmd, QString* response, 
     return true;
 }
 
-bool TinyBeeController::waitForResponse(QString& outResponse, int timeoutMs)
+bool TinyBeeController::waitForResponse(QString &outResponse, int timeoutMs)
 {
     QElapsedTimer timer;
     timer.start();
 
-    while (timer.elapsed() < timeoutMs) {
-        if (m_serial.waitForReadyRead(timeoutMs - timer.elapsed())) {
+    while (timer.elapsed() < timeoutMs)
+    {
+        if (m_serial.waitForReadyRead(timeoutMs - timer.elapsed()))
+        {
             QByteArray newData = m_serial.readAll();
             m_responseBuffer.append(newData);
 
             // Customize per device: response done if contains "ok" or ends with newline
-            if (m_responseBuffer.contains("\nok") || m_responseBuffer.endsWith('\n')) {
+            if (m_responseBuffer.contains("\nok") || m_responseBuffer.endsWith('\n'))
+            {
                 outResponse = QString::fromUtf8(m_responseBuffer);
                 m_responseBuffer.clear();
                 return true;
@@ -183,15 +198,17 @@ void TinyBeeController::onErrorOccurred(QSerialPort::SerialPortError error)
     m_hasError = true;
 }
 
-bool TinyBeeController::parseResponse(const QString& response, QHash<QString, QString>& parsed)
+bool TinyBeeController::parseResponse(const QString &response, QHash<QString, QString> &parsed)
 {
     parsed.clear();
     // Example: "X:10.00 Y:15.00 Z:5.00 E:0.00 Count X:1000 Y:1500 Z:500"
     QStringList parts = response.trimmed().split(' ', Qt::SkipEmptyParts);
 
-    for (const QString &part : parts) {
+    for (const QString &part : parts)
+    {
         int colonIndex = part.indexOf(':');
-        if (colonIndex > 0 && colonIndex < part.length() - 1) {
+        if (colonIndex > 0 && colonIndex < part.length() - 1)
+        {
             QString key = part.left(colonIndex);
             QString val = part.mid(colonIndex + 1);
             parsed.insert(key, val);
@@ -200,16 +217,18 @@ bool TinyBeeController::parseResponse(const QString& response, QHash<QString, QS
     return !parsed.isEmpty();
 }
 
-bool TinyBeeController::getPosition(MotorPosition& pos, int timeoutMs)
+bool TinyBeeController::getPosition(MotorPosition &pos, int timeoutMs)
 {
     QString response;
-    if (!sendCommand(GCodeCommand{GCodeCommandType::Custom, -1, 0, 0, 0, 0, "M114"}, &response, timeoutMs)) {
+    if (!sendCommand(GCodeCommand{GCodeCommandType::Custom, -1, 0, 0, 0, 0, "M114"}, &response, timeoutMs))
+    {
         qWarning() << "Failed to get position (M114)";
         return false;
     }
 
     QHash<QString, QString> parsed;
-    if (!parseResponse(response, parsed)) {
+    if (!parseResponse(response, parsed))
+    {
         qWarning() << "Failed to parse position response:" << response;
         return false;
     }
@@ -219,7 +238,8 @@ bool TinyBeeController::getPosition(MotorPosition& pos, int timeoutMs)
     double yVal = parsed.value("Y").toDouble(&okY);
     double zVal = parsed.value("Z").toDouble(&okZ);
 
-    if (!okX || !okY || !okZ) {
+    if (!okX || !okY || !okZ)
+    {
         qWarning() << "Position parse error from response:" << response;
         return false;
     }
